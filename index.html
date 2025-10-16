@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Operator Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#020204;
+      --panel:#041018;
+      --cy:#00f0ff;
+      --mag:#ff00a8;
+      --muted: #8bd6df33;
+    }
+    html,body{height:100%}
+    body{
+      background: radial-gradient(1000px 400px at 10% 10%, rgba(0,240,255,0.035), transparent),
+                  radial-gradient(800px 300px at 90% 90%, rgba(255,0,168,0.02), transparent),
+                  var(--bg);
+      color:var(--cy);
+      font-family: "Oxanium", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      letter-spacing:0.6px;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    /* Layout */
+    .app {
+      min-height:100vh;
+      display:flex;
+      gap:24px;
+      padding:28px;
+      box-sizing:border-box;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width:260px;
+      max-width:22%;
+      min-width:220px;
+      background: linear-gradient(180deg, rgba(4,16,24,0.8), rgba(4,10,20,0.6));
+      border:1px solid rgba(0,240,255,0.08);
+      border-left:3px solid rgba(0,240,255,0.12);
+      border-radius:14px;
+      padding:18px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      position:relative;
+      transition:all .28s ease;
+    }
+    .sidebar.collapsed{ width:80px; min-width:80px; }
+    .brand{
+      display:flex;align-items:center;gap:12px;margin-bottom:12px;
+    }
+    .logo {
+      width:50px;height:50px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg, rgba(0,240,255,0.12), rgba(255,0,168,0.06));
+      border:1px solid rgba(0,240,255,0.12);
+      box-shadow:0 6px 18px rgba(0,240,255,0.03), inset 0 -4px 12px rgba(0,0,0,0.2);
+      font-weight:700;color:var(--cy);
+    }
+    .brand .title{
+      font-size:14px; line-height:1; color: #9ef6ff; font-weight:700;
+    }
+    .brand .sub{ font-size:11px; color: #79dbe0; opacity:0.8; }
+
+    .nav { margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+    .nav button{
+      display:flex; align-items:center; gap:12px;
+      font-weight:600; padding:10px 12px; border-radius:10px; background:transparent;
+      border:1px solid transparent; color:var(--cy); cursor:pointer;
+      transition:all .18s ease;
+    }
+    .nav button .ico{ width:20px;height:20px; display:inline-grid; place-items:center; opacity:0.9 }
+    .nav button .badge{ margin-left:auto; background:linear-gradient(90deg,var(--mag),var(--cy)); font-size:11px; padding:2px 8px; border-radius:999px; color:#001; font-weight:700; }
+    .nav button:hover{ background: linear-gradient(90deg, rgba(0,240,255,0.03), rgba(255,0,168,0.02)); transform:translateX(4px) }
+    .nav button.active{ background:linear-gradient(90deg, rgba(0,240,255,0.05), rgba(255,0,168,0.03)); box-shadow:0 8px 32px rgba(0,240,255,0.04); border:1px solid rgba(0,240,255,0.06) }
+
+    .collapse-toggle{ position:absolute; right:-18px; top:24px; background:linear-gradient(180deg,#001218, #02151b); width:36px;height:36px; border-radius:10px; display:grid; place-items:center; border:1px solid rgba(0,240,255,0.06); cursor:pointer; color:var(--cy) }
+    .sidebar.collapsed .brand .title, .sidebar.collapsed .brand .sub, .sidebar.collapsed .nav button span.text{ display:none }
+    .sidebar.collapsed .badge{ display:none }
+
+    /* Main panel */
+    .panel {
+      flex:1; min-width:0;
+      background: linear-gradient(180deg, rgba(4,8,12,0.45), rgba(2,6,8,0.6));
+      border-radius:14px; padding:20px;
+      border:1px solid rgba(0,240,255,0.04); box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      overflow:hidden;
+    }
+
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .panel-head .title { font-size:18px; font-weight:800; color:#bffcff; letter-spacing:1px; }
+    .panel-head .sub { font-size:12px; color:#81e9ef; opacity:0.9 }
+
+    .cards { display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom:12px; }
+    @media (max-width:1100px){ .cards{ grid-template-columns: repeat(2,1fr);} .sidebar{display:none} .sidebar.collapsed{display:none} .app{padding:12px} }
+    @media (max-width:720px){ .cards{ grid-template-columns: 1fr; } .sidebar{display:none} }
+
+    .card {
+      background: linear-gradient(180deg, rgba(0,16,20,0.35), rgba(0,10,12,0.3));
+      border-radius:12px; padding:12px; border:1px solid rgba(0,240,255,0.03);
+    }
+    .muted { color:#7fdce7aa; font-size:13px }
+
+    .section{
+      display:none;
+      animation:fadeIn .22s ease;
+    }
+    .section.active{ display:block }
+
+    @keyframes fadeIn { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+
+    /* Inputs */
+    .field { width:100%; padding:10px; border-radius:10px; background:transparent; border:1px solid rgba(0,240,255,0.06); color:var(--cy); outline:none; margin-bottom:8px }
+    .btn {
+      padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:700; letter-spacing:0.6px;
+      border:1px solid rgba(0,240,255,0.08); background: linear-gradient(90deg, rgba(0,240,255,0.02), rgba(255,0,168,0.02));
+      color:var(--cy);
+    }
+    .btn.warn{ background:linear-gradient(90deg, rgba(255,50,140,0.06), rgba(0,240,255,0.02)); border:1px solid rgba(255,0,120,0.06) }
+
+    /* Lists */
+    ul.list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+    ul.list li { display:flex; align-items:center; gap:12px; padding:8px; border-radius:8px; border:1px solid rgba(0,240,255,0.02); }
+    ul.list li .title { font-weight:700; color:#dff; }
+    ul.list li .meta { margin-left:auto; font-size:12px; color:#8bdbe1; opacity:0.85 }
+
+    .muted-2 { color:#5bb4b9; opacity:0.85 }
+
+    /* Sparkline canvas */
+    .sparkline { width:100%; height:40px; display:block }
+    .small { font-size:13px }
+
+    /* footer small */
+    .smallmuted{ font-size:12px; color:#7fdbe0aa; margin-top:10px }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <nav id="sidebar" class="sidebar shadow-lg">
+      <div class="brand">
+        <div class="logo">-_-</div>
+        <div>
+          <div class="title">ADMIN</div>
+          <div class="sub">Control • Log • Reflect</div>
+        </div>
+      </div>
+
+      <div class="nav">
+        <button class="nav-btn active" data-section="overview">
+          <div class="ico">🏷️</div><span class="text">Overview</span><span class="badge" id="count-overview">—</span>
+        </button>
+
+        <button class="nav-btn" data-section="missions">
+          <div class="ico">🚀</div><span class="text">Missions</span><span class="badge" id="count-missions">0</span>
+        </button>
+
+        <button class="nav-btn" data-section="health">
+          <div class="ico">💓</div><span class="text">Health</span><span class="badge" id="count-health">0</span>
+        </button>
+
+        <button class="nav-btn" data-section="mood">
+          <div class="ico">😊</div><span class="text">Mood</span><span class="badge" id="count-mood">0</span>
+        </button>
+
+        <button class="nav-btn" data-section="journal">
+          <div class="ico">📓</div><span class="text">Journal</span><span class="badge" id="count-journal">0</span>
+        </button>
+
+        <button class="nav-btn" data-section="syslog">
+          <div class="ico">📡</div><span class="text">System Log</span><span class="badge" id="count-syslog">0</span>
+        </button>
+
+        <button class="nav-btn" data-section="settings">
+          <div class="ico">⚙️</div><span class="text">Settings</span>
+        </button>
+      </div>
+
+      <div style="margin-top:18px" class="muted smallmuted">
+        <div id="clockSmall">--:--:--</div>
+        <div id="dateSmall" class="muted-2"></div>
+      </div>
+
+      <div class="collapse-toggle" id="toggleCollapse" title="Collapse sidebar">⫶</div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="title" id="panelTitle">Overview</div>
+          <div class="sub" id="panelSubtitle">Operator dashboard • quick snapshot</div>
+        </div>
+        <div style="text-align:right">
+          <div id="quote" class="muted small">Loading quote...</div>
+        </div>
+      </div>
+
+      <!-- Top cards -->
+      <div class="cards">
+        <div class="card">
+          <div class="muted">Missions active</div>
+          <div class="text-2xl" id="card-missions">0</div>
+          <div class="muted-2 small">Completed missions are archived</div>
+        </div>
+        <div class="card">
+          <div class="muted">Health entries</div>
+          <div class="text-2xl" id="card-health">0</div>
+          <div class="muted-2 small">Recent weight trend</div>
+        </div>
+        <div class="card">
+          <div class="muted">Mood entries</div>
+          <div class="text-2xl" id="card-mood">0</div>
+          <div class="muted-2 small">Journal reflections</div>
+        </div>
+      </div>
+
+      <!-- Sections -->
+      <section id="overview" class="section active">
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div class="muted">Welcome back, Operator</div>
+              <div class="title">Personal snapshot</div>
+            </div>
+            <div class="smallmuted">Local data • saved on this device</div>
+          </div>
+          <div style="display:flex; gap:14px; margin-top:12px; align-items:center;">
+            <div style="flex:1">
+              <div class="muted small">Recent weights</div>
+              <canvas id="sparkWeights" class="sparkline"></canvas>
+            </div>
+            <div style="width:220px">
+              <div class="muted small">Latest mission</div>
+              <div id="overviewLatestMission" class="muted-2 small">—</div>
+              <div style="height:8px"></div>
+              <div class="muted small">Last mood</div>
+              <div id="overviewLatestMood" class="muted-2 small">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="muted">Quick actions</div>
+          <div style="display:flex; gap:8px; margin-top:10px">
+            <button class="btn" onclick="showSection('missions')">Add Mission</button>
+            <button class="btn" onclick="showSection('health')">Log Health</button>
+            <button class="btn" onclick="showSection('mood')">Record Mood</button>
+            <button class="btn" onclick="exportData()">Export</button>
+            <button class="btn warn" onclick="confirmClearAll()">Reset All</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Missions section -->
+      <section id="missions" class="section">
+        <div class="card">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div>
+              <div class="muted">Mission log</div>
+              <div class="title">Missions</div>
+            </div>
+            <div style="margin-left:auto" class="smallmuted">Add, complete, edit, delete</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <input id="missionInput" class="field" placeholder="New mission (press Enter or click Add)" />
+            <div style="display:flex; gap:8px;">
+              <button class="btn" id="btnAddMission">Add</button>
+              <button class="btn" id="btnArchiveCompleted">Archive Completed</button>
+              <button class="btn" id="btnExportMissions">Export Missions</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <ul id="missionsList" class="list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Health section -->
+      <section id="health" class="section">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div class="muted">Vital log</div>
+              <div class="title">Health</div>
+            </div>
+            <div class="muted small">Date-stamped entries</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input id="inputWeight" class="field" placeholder="Weight (kg)" type="number" />
+              <input id="inputSleep" class="field" placeholder="Sleep (hours)" type="number" />
+              <input id="inputExercise" class="field" placeholder="Exercise (short note)" />
+              <button class="btn" id="btnSaveHealth">Save</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="muted small">Entries</div>
+            <ul id="healthList" class="list" style="margin-top:8px"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mood section -->
+      <section id="mood" class="section">
+        <div class="card">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div>
+              <div class="muted">Emotional state</div>
+              <div class="title">Mood Monitor</div>
+            </div>
+            <div style="margin-left:auto" class="smallmuted">Emoji + note</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="selectMood" class="field" style="max-width:140px; padding-left:12px">
+                <option>😊 Happy</option><option>🙂 Calm</option><option>😐 Neutral</option><option>😟 Down</option><option>😡 Angry</option>
+              </select>
+              <input id="inputMoodNote" class="field" placeholder="Short note..." />
+              <button class="btn" id="btnSaveMood">Record</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="muted small">Mood history</div>
+            <ul id="moodList" class="list" style="margin-top:8px"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Journal -->
+      <section id="journal" class="section">
+        <div class="card">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div>
+              <div class="muted">Private notes</div>
+              <div class="title">Journal</div>
+            </div>
+            <div style="margin-left:auto" class="smallmuted">Write freely • stored locally</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <textarea id="inputJournal" class="field" rows="5" placeholder="Write your reflection..."></textarea>
+            <div style="display:flex; gap:8px;">
+              <button class="btn" id="btnSaveJournal">Save Entry</button>
+              <button class="btn" id="btnExportJournal">Export Journal</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="muted small">Entries</div>
+            <ul id="journalList" class="list" style="margin-top:8px"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- System log -->
+      <section id="syslog" class="section">
+        <div class="card">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div>
+              <div class="muted">Event history</div>
+              <div class="title">System Log</div>
+            </div>
+            <div style="margin-left:auto" class="smallmuted">Important actions recorded</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div style="display:flex; gap:8px;">
+              <button class="btn" onclick="exportData()">Export Full Data</button>
+              <button class="btn warn" onclick="clearSystemLog()">Clear Log</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <ul id="sysList" class="list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section id="settings" class="section">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; gap:12px;">
+            <div>
+              <div class="muted">Device data</div>
+              <div class="title">Settings</div>
+            </div>
+            <div class="smallmuted">LocalStorage controls</div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="muted small">Data management</div>
+            <div style="display:flex; gap:8px; margin-top:10px">
+              <button class="btn warn" onclick="confirmClearAll()">Reset All Data</button>
+              <button class="btn" onclick="exportData()">Export JSON</button>
+              <label class="btn" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer">
+                Import
+                <input id="inputImport" type="file" accept="application/json" style="display:none" />
+              </label>
+            </div>
+
+            <div style="margin-top:12px" class="muted small">Appearance</div>
+            <div style="margin-top:8px" class="muted-2 small">You can customize theme colors in the file (CSS variables)</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="smallmuted" style="margin-top:12px">Built for you — local-first • private • expand later with cloud sync</div>
+    </main>
+  </div>
+
+  <script>
+    // ======= Utility & Data Keys =======
+    const KEY = {
+      tasks: 'op_tasks_v2',
+      health: 'op_health_v2',
+      mood: 'op_mood_v2',
+      journal: 'op_journal_v2',
+      syslog: 'op_syslog_v2'
+    };
+
+    // ======= DOM refs =======
+    const sidebar = document.getElementById('sidebar');
+    const toggleCollapse = document.getElementById('toggleCollapse');
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const sections = document.querySelectorAll('.section');
+    const titleEl = document.getElementById('panelTitle');
+    const subtitleEl = document.getElementById('panelSubtitle');
+    const quoteEl = document.getElementById('quote');
+    const clockSmall = document.getElementById('clockSmall');
+    const dateSmall = document.getElementById('dateSmall');
+
+    // small dom refs
+    const missionInput = document.getElementById('missionInput');
+    const missionsList = document.getElementById('missionsList');
+    const cardMissions = document.getElementById('card-missions');
+
+    const inputWeight = document.getElementById('inputWeight');
+    const inputSleep = document.getElementById('inputSleep');
+    const inputExercise = document.getElementById('inputExercise');
+    const healthList = document.getElementById('healthList');
+    const cardHealth = document.getElementById('card-health');
+
+    const selectMood = document.getElementById('selectMood');
+    const inputMoodNote = document.getElementById('inputMoodNote');
+    const moodList = document.getElementById('moodList');
+    const cardMood = document.getElementById('card-mood');
+
+    const inputJournal = document.getElementById('inputJournal');
+    const journalList = document.getElementById('journalList');
+
+    const sysList = document.getElementById('sysList');
+
+    const countOverview = document.getElementById('count-overview');
+    const countMissions = document.getElementById('count-missions');
+    const countHealth = document.getElementById('count-health');
+    const countMood = document.getElementById('count-mood');
+    const countJournal = document.getElementById('count-journal');
+    const countSyslog = document.getElementById('count-syslog');
+
+    // ======= Helpers =======
+    function nowString() { return new Date().toLocaleString(); }
+    function nowDate() { return new Date().toLocaleDateString(); }
+
+    function load(key){ try { return JSON.parse(localStorage.getItem(key) || '[]') } catch(e){ return [] } }
+    function save(key, arr){ localStorage.setItem(key, JSON.stringify(arr)); }
+
+    function pushLog(msg){
+      const log = load(KEY.syslog);
+      log.push({ t: nowString(), msg });
+      save(KEY.syslog, log);
+      renderSysLog();
+    }
+
+    // ======= Sidebar behavior =======
+    toggleCollapse.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+    });
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        navButtons.forEach(n=>n.classList.remove('active'));
+        btn.classList.add('active');
+        const sec = btn.getAttribute('data-section');
+        showSection(sec);
+      });
+    });
+
+    function showSection(id){
+      sections.forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      titleEl.textContent = document.querySelector('.nav-btn[data-section="'+id+'"] .text')?.textContent || 'Overview';
+      subtitleEl.textContent = (id === 'overview') ? 'Operator dashboard • quick snapshot' : '';
+    }
+
+    // ======= Clock & Quote =======
+    const quotes = [
+      "Stay focused. Stay human.",
+      "Progress: one mission at a time.",
+      "You are your best upgrade.",
+      "System running on hope and caffeine.",
+      "Data integrity begins with self-discipline."
+    ];
+    function tickClock(){
+      const now = new Date();
+      const ts = now.toLocaleTimeString();
+      const ds = now.toDateString();
+      document.getElementById('clockSmall').textContent = ts;
+      document.getElementById('dateSmall').textContent = ds;
+      // also top clock
+      document.getElementById('panelSubtitle').querySelector?.remove?.();
+    }
+    setInterval(tickClock, 1000);
+    quoteEl.textContent = quotes[Math.floor(Math.random()*quotes.length)];
+    tickClock();
+
+    // ======= Missions =======
+    function renderMissions(){
+      const tasks = load(KEY.tasks);
+      missionsList.innerHTML = '';
+      tasks.forEach((t, idx)=>{
+        const li = document.createElement('li');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = !!t.done;
+        checkbox.addEventListener('change', () => {
+          tasks[idx].done = checkbox.checked;
+          save(KEY.tasks, tasks);
+          pushLog(`${checkbox.checked ? 'Completed' : 'Marked incomplete'} mission: ${t.text}`);
+          renderAllCounts();
+          renderMissions();
+        });
+
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = t.text;
+        if (t.done) title.style.textDecoration = 'line-through';
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = t.createdAt || '';
+
+        const btnEdit = document.createElement('button');
+        btnEdit.textContent = '✎';
+        btnEdit.className = 'btn';
+        btnEdit.style.marginLeft = '8px';
+        btnEdit.addEventListener('click', () => {
+          const newText = prompt('Edit mission', t.text);
+          if (newText !== null) {
+            tasks[idx].text = newText.trim();
+            save(KEY.tasks, tasks);
+            pushLog(`Edited mission: ${newText}`);
+            renderAllCounts(); renderMissions();
+          }
+        });
+
+        const btnDelete = document.createElement('button');
+        btnDelete.textContent = '🗑';
+        btnDelete.className = 'btn warn';
+        btnDelete.style.marginLeft='8px';
+        btnDelete.addEventListener('click', () => {
+          if (confirm('Delete this mission?')) {
+            tasks.splice(idx,1); save(KEY.tasks, tasks);
+            pushLog(`Deleted mission: ${t.text}`);
+            renderAllCounts(); renderMissions();
+          }
+        });
+
+        li.appendChild(checkbox);
+        li.appendChild(title);
+        li.appendChild(meta);
+        li.appendChild(btnEdit);
+        li.appendChild(btnDelete);
+        missionsList.appendChild(li);
+      });
+      cardMissions.textContent = tasks.filter(t=>!t.done).length;
+      document.getElementById('count-missions').textContent = tasks.length;
+    }
+
+    document.getElementById('btnAddMission').addEventListener('click', addMissionFromInput);
+    missionInput.addEventListener('keypress', (e)=>{ if (e.key==='Enter') addMissionFromInput(); });
+
+    function addMissionFromInput(){
+      const val = missionInput.value.trim();
+      if (!val) return;
+      const tasks = load(KEY.tasks);
+      tasks.push({ text: val, done:false, createdAt: nowString() });
+      save(KEY.tasks, tasks);
+      missionInput.value='';
+      pushLog(`Added mission: ${val}`);
+      renderAllCounts(); renderMissions();
+      showSection('missions');
+    }
+
+    document.getElementById('btnArchiveCompleted').addEventListener('click', ()=>{
+      let tasks = load(KEY.tasks);
+      const before = tasks.length;
+      tasks = tasks.filter(t=>!t.done);
+      save(KEY.tasks, tasks);
+      pushLog(`Archived completed missions (${before - tasks.length})`);
+      renderAllCounts(); renderMissions();
+    });
+
+    document.getElementById('btnExportMissions').addEventListener('click', ()=>{
+      const data = load(KEY.tasks);
+      downloadJSON(data, 'missions.json');
+    });
+
+    // ======= Health =======
+    function renderHealth(){
+      const arr = load(KEY.health);
+      healthList.innerHTML = '';
+      arr.slice().reverse().forEach((h, idx)=>{
+        const li = document.createElement('li');
+        const title = document.createElement('div');
+        title.className='title';
+        title.textContent = `${h.weight || '—'} kg • ${h.sleep || '—'} h • ${h.exercise || '—'}`;
+
+        const meta = document.createElement('div');
+        meta.className='meta';
+        meta.textContent = h.date || '';
+
+        const btnDel = document.createElement('button');
+        btnDel.className='btn warn';
+        btnDel.textContent='Del';
+        btnDel.addEventListener('click', ()=>{
+          const data = load(KEY.health);
+          data.splice(data.length -1 - idx, 1); // remove correct reversed index
+          save(KEY.health, data);
+          pushLog(`Deleted health entry: ${h.date}`);
+          renderAllCounts(); renderHealth(); renderSpark();
+        });
+
+        li.appendChild(title);
+        li.appendChild(meta);
+        li.appendChild(btnDel);
+        healthList.appendChild(li);
+      });
+      cardHealth.textContent = arr.length;
+      document.getElementById('count-health').textContent = arr.length;
+      renderSpark();
+    }
+
+    document.getElementById('btnSaveHealth').addEventListener('click', ()=>{
+      const w = inputWeight.value.trim();
+      const s = inputSleep.value.trim();
+      const e = inputExercise.value.trim();
+      if (!w && !s && !e) return alert('Enter at least one value');
+      const arr = load(KEY.health);
+      arr.push({ date: nowString(), weight: w || null, sleep: s || null, exercise: e || null });
+      save(KEY.health, arr);
+      inputWeight.value=''; inputSleep.value=''; inputExercise.value='';
+      pushLog('Saved health entry');
+      renderAllCounts(); renderHealth();
+    });
+
+    // ======= Mood =======
+    function renderMood(){
+      const arr = load(KEY.mood);
+      moodList.innerHTML='';
+      arr.slice().reverse().forEach((m, idx)=>{
+        const li = document.createElement('li');
+        const title = document.createElement('div'); title.className='title'; title.textContent = `${m.emoji.split(' ')[0]} — ${m.note || ''}`;
+        const meta = document.createElement('div'); meta.className='meta'; meta.textContent = m.date || '';
+        const btnDel = document.createElement('button'); btnDel.className='btn warn'; btnDel.textContent='Del';
+        btnDel.addEventListener('click', ()=>{
+          const data = load(KEY.mood); data.splice(data.length-1-idx,1); save(KEY.mood, data); pushLog('Deleted mood entry'); renderAllCounts(); renderMood();
+        });
+        li.appendChild(title); li.appendChild(meta); li.appendChild(btnDel);
+        moodList.appendChild(li);
+      });
+      cardMood.textContent = arr.length;
+      document.getElementById('count-mood').textContent = arr.length;
+    }
+
+    document.getElementById('btnSaveMood').addEventListener('click', ()=>{
+      const emoji = selectMood.value;
+      const note = inputMoodNote.value.trim();
+      const arr = load(KEY.mood);
+      arr.push({ date: nowString(), emoji, note });
+      save(KEY.mood, arr);
+      inputMoodNote.value='';
+      pushLog('Recorded mood: ' + emoji);
+      renderAllCounts(); renderMood();
+    });
+
+    // ======= Journal =======
+    function renderJournal(){
+      const arr = load(KEY.journal);
+      journalList.innerHTML='';
+      arr.slice().reverse().forEach((j, idx)=>{
+        const li = document.createElement('li');
+        const title = document.createElement('div'); title.className='title'; title.textContent = j.entry.length>140 ? j.entry.slice(0,140)+'…' : j.entry;
+        const meta = document.createElement('div'); meta.className='meta'; meta.textContent = j.date || '';
+        const btnView = document.createElement('button'); btnView.className='btn'; btnView.textContent='View';
+        btnView.addEventListener('click', ()=>{ alert(`${j.date}\n\n${j.entry}`) });
+        const btnDel = document.createElement('button'); btnDel.className='btn warn'; btnDel.textContent='Del';
+        btnDel.addEventListener('click', ()=>{
+          const data = load(KEY.journal); data.splice(data.length-1-idx,1); save(KEY.journal, data); pushLog('Deleted journal entry'); renderAllCounts(); renderJournal();
+        });
+        li.appendChild(title); li.appendChild(meta); li.appendChild(btnView); li.appendChild(btnDel);
+        journalList.appendChild(li);
+      });
+      document.getElementById('count-journal').textContent = arr.length;
+    }
+
+    document.getElementById('btnSaveJournal').addEventListener('click', ()=>{
+      const entry = inputJournal.value.trim();
+      if (!entry) return alert('Write something first');
+      const arr = load(KEY.journal); arr.push({ date: nowString(), entry }); save(KEY.journal, arr);
+      inputJournal.value='';
+      pushLog('Saved journal entry');
+      renderAllCounts(); renderJournal();
+    });
+
+    // ======= System log =======
+    function renderSysLog(){
+      const arr = load(KEY.syslog);
+      sysList.innerHTML='';
+      arr.slice().reverse().forEach(s=>{
+        const li = document.createElement('li');
+        const title = document.createElement('div'); title.className='title'; title.textContent = s.msg;
+        const meta = document.createElement('div'); meta.className='meta'; meta.textContent = s.t;
+        li.appendChild(title); li.appendChild(meta);
+        sysList.appendChild(li);
+      });
+      document.getElementById('count-syslog').textContent = arr.length;
+    }
+
+    function clearSystemLog(){
+      if (!confirm('Clear entire system log?')) return;
+      save(KEY.syslog, []);
+      pushLog('System log cleared'); // pushLog adds new entry again — so let's instead clear silently
+      save(KEY.syslog, []);
+      renderSysLog(); renderAllCounts();
+    }
+
+    // ======= Counts & Overview =======
+    function renderAllCounts(){
+      const tasks = load(KEY.tasks);
+      const health = load(KEY.health);
+      const mood = load(KEY.mood);
+      const journal = load(KEY.journal);
+      const sys = load(KEY.syslog);
+      countMissions.textContent = tasks.length;
+      countHealth.textContent = health.length;
+      countMood.textContent = mood.length;
+      countJournal.textContent = journal.length;
+      countSyslog.textContent = sys.length;
+
+      countOverview.textContent = `M:${tasks.length} H:${health.length} J:${journal.length}`;
+      cardMissions.textContent = tasks.filter(t=>!t.done).length;
+      cardHealth.textContent = health.length;
+      cardMood.textContent = mood.length;
+
+      // overview latest
+      document.getElementById('overviewLatestMission').textContent = tasks.length ? tasks[tasks.length-1].text : '—';
+      document.getElementById('overviewLatestMood').textContent = (mood.length ? mood[mood.length-1].emoji + ' • ' + (mood[mood.length-1].note || '') : '—');
+    }
+
+    // ======= Export / Import =======
+    function exportData(){
+      const data = {
+        tasks: load(KEY.tasks),
+        health: load(KEY.health),
+        mood: load(KEY.mood),
+        journal: load(KEY.journal),
+        syslog: load(KEY.syslog)
+      };
+      downloadJSON(data, 'op_dashboard_export_' + Date.now() + '.json');
+      pushLog('Exported full data');
+    }
+
+    function downloadJSON(obj, filename){
+      const blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 2000);
+    }
+
+    // Import file input handler
+    const inputImport = document.getElementById('inputImport');
+    inputImport.addEventListener('change', (e)=>{
+      const f = e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const obj = JSON.parse(reader.result);
+          if (confirm('Importing will append data from file into existing data. Continue?')){
+            const existing = {
+              tasks: load(KEY.tasks),
+              health: load(KEY.health),
+              mood: load(KEY.mood),
+              journal: load(KEY.journal),
+              syslog: load(KEY.syslog)
+            };
+            if (Array.isArray(obj.tasks)) save(KEY.tasks, existing.tasks.concat(obj.tasks));
+            if (Array.isArray(obj.health)) save(KEY.health, existing.health.concat(obj.health));
+            if (Array.isArray(obj.mood)) save(KEY.mood, existing.mood.concat(obj.mood));
+            if (Array.isArray(obj.journal)) save(KEY.journal, existing.journal.concat(obj.journal));
+            if (Array.isArray(obj.syslog)) save(KEY.syslog, existing.syslog.concat(obj.syslog));
+            pushLog('Imported external data');
+            renderAllCounts(); renderMissions(); renderHealth(); renderMood(); renderJournal(); renderSysLog();
+            alert('Import complete');
+          }
+        } catch(err){
+          alert('Invalid JSON file');
+        }
+      };
+      reader.readAsText(f);
+      e.target.value = '';
+    });
+
+    // ======= Reset all =======
+    function confirmClearAll(){
+      if (!confirm('Reset ALL dashboard data? This will clear local data permanently.')) return;
+      localStorage.removeItem(KEY.tasks);
+      localStorage.removeItem(KEY.health);
+      localStorage.removeItem(KEY.mood);
+      localStorage.removeItem(KEY.journal);
+      localStorage.removeItem(KEY.syslog);
+      pushLog('Performed full reset'); // will create a fresh log entry
+      renderAllCounts(); renderMissions(); renderHealth(); renderMood(); renderJournal(); renderSysLog();
+      alert('All data reset');
+    }
+
+    // ======= Sparkline (lightweight) =======
+    function renderSpark(){
+      const arr = load(KEY.health).map(h => (h.weight ? Number(h.weight) : null)).filter(Boolean);
+      const canvas = document.getElementById('sparkWeights');
+      if (!canvas) return;
+      canvas.width = canvas.clientWidth * devicePixelRatio;
+      canvas.height = (canvas.clientHeight || 40) * devicePixelRatio;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if (!arr.length) {
+        ctx.fillStyle = 'rgba(0,240,255,0.06)';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = 'rgba(0,240,255,0.2)';
+        ctx.font = `${12*devicePixelRatio}px sans-serif`;
+        ctx.fillText('No weight data', 6*devicePixelRatio, 20*devicePixelRatio);
+        return;
+      }
+      const w = canvas.width, h = canvas.height;
+      const max = Math.max(...arr), min = Math.min(...arr);
+      const pad = 8*devicePixelRatio;
+      const step = (w - pad*2) / Math.max(1, arr.length-1);
+      ctx.lineWidth = 2*devicePixelRatio;
+      // gradient stroke
+      const grad = ctx.createLinearGradient(0,0,w,0);
+      grad.addColorStop(0, 'rgba(255,0,168,0.9)'); grad.addColorStop(1, 'rgba(0,240,255,0.9)');
+      ctx.strokeStyle = grad;
+      ctx.beginPath();
+      arr.forEach((val, i)=> {
+        const x = pad + i*step;
+        const y = h - pad - ((val - min) / Math.max(1, (max-min))) * (h - pad*2);
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      // points
+      ctx.fillStyle = 'rgba(0,240,255,0.9)';
+      arr.forEach((val, i)=> {
+        const x = pad + i*step;
+        const y = h - pad - ((val - min) / Math.max(1, (max-min))) * (h - pad*2);
+        ctx.beginPath(); ctx.arc(x,y,3*devicePixelRatio,0,Math.PI*2); ctx.fill();
+      });
+    }
+
+    // ======= Init & Render =======
+    function init(){
+      // ensure syslog exists
+      if (!localStorage.getItem(KEY.syslog)) save(KEY.syslog, [{ t: nowString(), msg: 'System log initiated' }]);
+      renderAllCounts(); renderMissions(); renderHealth(); renderMood(); renderJournal(); renderSysLog();
+      renderSpark();
+      // wire remaining simple buttons
+      document.getElementById('btnExportMissions').addEventListener('click', ()=>{ downloadJSON(load(KEY.tasks), 'missions.json') });
+    }
+
+    // helper to download array as json
+    function downloadJSON(data, fileName){ downloadJSON_orig(data, fileName) }
+    function downloadJSON_orig(obj, filename){
+      const blob = new Blob([JSON.stringify(obj,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 2000);
+    }
+
+    // Run init
+    init();
+
+    // small UX nicety: keyboard shortcut N to add mission
+    document.addEventListener('keydown', (e)=>{
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n'){ showSection('missions'); missionInput.focus(); e.preventDefault(); }
+    });
+
+    // initial panel show
+    showSection('overview');
+  </script>
+</body>
+</html>
